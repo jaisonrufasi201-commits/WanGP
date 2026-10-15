@@ -1,16 +1,6 @@
 FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
 
-# Build arg for GPU architectures - specify which CUDA compute capabilities to compile for
-# Common values:
-#   7.0  - Tesla V100
-#   7.5  - RTX 2060, 2070, 2080, Titan RTX
-#   8.0  - A100, A800 (Ampere data center)
-#   8.6  - RTX 3060, 3070, 3080, 3090 (Ampere consumer)
-#   8.9  - RTX 4070, 4080, 4090 (Ada Lovelace)
-#   9.0  - H100, H800 (Hopper data center)
-#   12.0 - RTX 5070, 5080, 5090 (Blackwell) - Note: sm_120 architecture
-#
-# Default includes 8.0 and 8.6 for broad Ampere compatibility
+# Build arg for GPU architectures
 ARG CUDA_ARCHITECTURES="8.0;8.6"
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -25,22 +15,21 @@ RUN apt update && \
 
 WORKDIR /workspace
 
+# Copy requirements first for Docker layer caching
 COPY requirements.txt .
 
-# Upgrade pip first (--no-cache-dir saves RAM and disk space)
+# Upgrade pip
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# Install PyTorch built against CUDA 12.8
+# Install PyTorch
 RUN pip install --no-cache-dir torch==2.10.0+cu128 torchvision==0.25.0+cu128 torchaudio==2.10.0+cu128 --index-url https://download.pytorch.org/whl/cu128
 
 # Install python requirements
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install SageAttention from git (patch GPU detection)
+# Install SageAttention from git
 ENV TORCH_CUDA_ARCH_LIST="${CUDA_ARCHITECTURES}"
 ENV FORCE_CUDA="1"
-
-# CRITICAL FIX: Limit compiler thread jobs to 1 (prevents OOM on Render 8GB build servers)
 ENV MAX_JOBS="1"
 
 COPY <<EOF /tmp/patch_setup.py
@@ -48,11 +37,9 @@ import os
 with open('setup.py', 'r') as f:
     content = f.read()
 
-# Get architectures from environment variable
 arch_list = os.environ.get('TORCH_CUDA_ARCH_LIST')
 arch_set = '{' + ', '.join([f'"{arch}"' for arch in arch_list.split(';')]) + '}'
 
-# Replace the GPU detection section
 old_section = '''compute_capabilities = set()
 device_count = torch.cuda.device_count()
 for i in range(device_count):
@@ -76,6 +63,9 @@ RUN git clone https://github.com/thu-ml/SageAttention.git /tmp/sageattention && 
     python3 /tmp/patch_setup.py && \
     pip install --no-cache-dir --no-build-isolation . && \
     rm -rf /tmp/sageattention /tmp/patch_setup.py
+
+# CRITICAL FIX: Copy all application files (including wgp.py) into /workspace
+COPY . /workspace
 
 RUN useradd -u 1000 -ms /bin/bash user
 
