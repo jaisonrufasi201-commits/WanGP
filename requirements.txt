@@ -53,7 +53,7 @@ s3tokenizer
 conformer==0.3.2
 spacy_pkuseg
 spacy
-    gradio_rangeslider
+gradio_rangeslider
 
 # Vision & segmentation
 opencv-python>=4.12.0.88
@@ -80,11 +80,11 @@ vector_quantize_pytorch==1.27.19
 # 3D meshes (UV unwrapping, decimation, marching cubes)
 xatlas>=0.0.11
 fast-simplification>=0.2.0
-scikit-image>=0.26.0
+scikit-image>=0.25.0; python_version < "3.11"
+scikit-image>=0.26.0; python_version >= "3.11"
 
 # Deepy Draw SVG (resvg rasterizer, MIT)
 resvg-py==0.5.0
-
 
 # chumpy wheel hosted on GitHub to avoid sdist build isolation issue
 chumpy @ https://github.com/deepbeepmeep/chumpy/releases/download/v0.71/chumpy-0.71-py3-none-any.whl
